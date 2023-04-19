@@ -1,5 +1,10 @@
 import numpy as np  
 
+
+def get_data(filename):
+    data = np.load(filename, allow_pickle=True).item()
+    return data
+
 def interpolate_vectors(p1, p2, V1, V2, xy, dim):
     ## find line connecting p1-p2
     # parallel to xx
