@@ -23,9 +23,9 @@ def interpolate_vectors(p1, p2, V1, V2, xy, dim):
         m = (p2[1] - p1[1]) / (p2[0] - p1[0])
         b = p1[1] - m * p1[0]
         if dim == 1:
-            p = np.array([xy, int(m * xy + b)])
+            p = np.array([xy, m * xy + b])
         elif dim == 2:
-            p = np.array([int((xy - b) / m), xy])
+            p = np.array([(xy - b) / m, xy])
 
     ## find p-p1 and p1-p2 distance
     # p-p1
@@ -42,7 +42,7 @@ def interpolate_vectors(p1, p2, V1, V2, xy, dim):
         l = d1 / d2
 
     # interpolate
-    V = l * V1 + (1 - l) * V2
+    V = abs((1 - l) * V1 + l * V2)
 
     return V
 
