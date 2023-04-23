@@ -44,7 +44,7 @@ def interpolate_vectors(p1, p2, V1, V2, xy, dim):
     return V
 
 def flats(canvas, vertices, vcolors):
-    updated_canvas = canvas
+    updatedcanvas = canvas
 
     # flat color that's going to be used for all vertices
     flat_color = np.mean(vcolors, axis = 0)
@@ -81,7 +81,7 @@ def flats(canvas, vertices, vcolors):
 
     # paint starting point
     if not horizontal:
-        updated_canvas[y_min, active_edges[0].y_min[0]] = flat_color
+        updatedcanvas[y_min, active_edges[0].y_min[0]] = flat_color
 
 
     ## find border points
@@ -101,7 +101,7 @@ def flats(canvas, vertices, vcolors):
                        math.floor(border_points[1][0] + 0.5) + 1):
             # draw pixel
             # reverse due to how it is rendered by imshow later
-            updated_canvas[y, x] = flat_color
+            updatedcanvas[y, x] = flat_color
 
 
         ## skip last active edges and border points
@@ -141,20 +141,41 @@ def flats(canvas, vertices, vcolors):
         if active_edges[-1].y_min[1] == y + 1:
             border_points.append([active_edges[-1].y_min[0], \
                                   active_edges[-1].m, active_edges[-1].ordinal])
+
+
         # there is an edge case when we have 3 active edges
         # and we get three border points, 2 with the same xk
         if len(border_points) == 3:
-            if int(border_points[0][0]) == int(border_points[2][0]):
+            if math.floor(border_points[0][0] + 0.5) == \
+                math.floor(border_points[2][0] + 0.5):
+                for i, edge in enumerate(active_edges):
+                    if edge.ordinal == border_points[0][2]:
+                        del active_edges[i]
+                        break
                 del border_points[0]
-            elif int(border_points[1][0]) == int(border_points[2][0]):
+            elif math.floor(border_points[1][0] + 0.5) == \
+                math.floor(border_points[2][0] + 0.5):
+                for i, edge in enumerate(active_edges):
+                    if edge.ordinal == border_points[1][2]:
+                        del active_edges[i]
+                        break
                 del border_points[1]
 
 
-        ## last edge horizontal, fix border points
+        ## last edge horizontal, fix border points and active edges
+        temp = []
+        flag = False
         for edge in active_edges:
             if edge.m == 0:
                 border_points = [[edge.y_min[0], 0, edge.ordinal],\
                                  [edge.y_max[0], 0, edge.ordinal]]
+                if not flag:
+                    for edge in active_edges:
+                        if edge.y_min[1] == y + 1:
+                            temp.append(edge)
+                            flag = True
+        if flag:
+            active_edges = temp
 
 
-    return updated_canvas
+    return updatedcanvas
