@@ -12,7 +12,8 @@ class Edge:
                 self.y_min = vertices[1, :]
                 self.y_max = vertices[0, :]
             if self.y_min[0] != self.y_max[0]:
-                self.m = (vertices[0, 1] - vertices[1, 1]) / (vertices[0, 0] - vertices[1, 0])
+                self.m = (vertices[0, 1] - vertices[1, 1]) / \
+                    (vertices[0, 0] - vertices[1, 0])
             else:
                 self.m = float('inf')
             self.active = False
@@ -25,6 +26,7 @@ class Edge:
             self.active = None
     
     def __str__(self):
-        return f"Edge ordinal: {self.ordinal}, vertices: {self.vertices}, y_min: {self.y_min}, y_max: {self.y_max}, m: {self.m}"
+        return f"Edge ordinal: {self.ordinal}, vertices: {self.vertices}, \
+            y_min: {self.y_min}, y_max: {self.y_max}, m: {self.m}, active: {self.active}"
 
 
