@@ -60,11 +60,11 @@ def flats(canvas, vertices, vcolors):
 
     # save edges
     edges = [Edge() for _ in range(3)]
-    edges[0] = Edge(0, np.array([vertices[0], \
+    edges[0] = Edge(np.array([vertices[0], \
                                  vertices[1]]))
-    edges[1] = Edge(1, np.array([vertices[1], \
+    edges[1] = Edge(np.array([vertices[1], \
                                  vertices[2]]))
-    edges[2] = Edge(2, np.array([vertices[2], \
+    edges[2] = Edge(np.array([vertices[2], \
                                  vertices[0]]))
 
     y_min = min([edge.y_min[1] for edge in edges])
@@ -160,11 +160,11 @@ def Gourauds(canvas, vertices, vcolors):
         return updatedcanvas
 
     edges = [Edge() for _ in range(3)]
-    edges[0] = Edge(0, np.array([vertices[0], \
+    edges[0] = Edge(np.array([vertices[0], \
                                  vertices[1]]))
-    edges[1] = Edge(1, np.array([vertices[1], \
+    edges[1] = Edge(np.array([vertices[1], \
                                  vertices[2]]))
-    edges[2] = Edge(2, np.array([vertices[2], \
+    edges[2] = Edge(np.array([vertices[2], \
                                  vertices[0]]))
 
     y_min = min([edge.y_min[1] for edge in edges])
