@@ -2,6 +2,8 @@ import numpy as np
 import math
 from edge import Edge
 
+M = N = 512
+
 def get_data(filename):
     data = np.load(filename, allow_pickle=True).item()
     return data
@@ -67,7 +69,6 @@ def flats(canvas, vertices, vcolors):
     y_min = min([edge.y_min[1] for edge in edges])
     y_max = max([edge.y_max[1] for edge in edges])
 
-
     active_edges = []
     horizontal = False
 
@@ -86,6 +87,14 @@ def flats(canvas, vertices, vcolors):
     if not horizontal:
         updatedcanvas[y_min, active_edges[0].y_min[0]] = flat_color
 
+    # it only happens if it is a line parallel two x'x
+    # and we actually don't even care cause this line
+    # will be painted again cause it belongs to another triangle
+    if len(active_edges) == 0:
+        active_edges.append(edges[0])
+        active_edges.append(edges[1])
+    if len(active_edges) < 2:
+        active_edges.append(active_edges[0])
 
     ## find border points
     # a border point is: xk, mk, on which edge
@@ -93,7 +102,6 @@ def flats(canvas, vertices, vcolors):
                       active_edges[0].ordinal], \
                      [active_edges[1].y_min[0], active_edges[1].m, \
                       active_edges[1].ordinal]]
-
 
     ### scanlines
     for y in range(y_min, y_max + 1):
@@ -148,16 +156,16 @@ def flats(canvas, vertices, vcolors):
 
         # there is an edge case when we have 3 active edges
         # and we get three border points, 2 with the same xk
+        # we delete the point whose active edge has the smallest y_max
         if len(border_points) == 3:
-            if math.floor(border_points[0][0] + 0.5) == \
-                math.floor(border_points[2][0] + 0.5):
+            if edges[border_points[0][2]].y_max[1] < \
+                edges[border_points[1][2]].y_max[1]:
                 for i, edge in enumerate(active_edges):
                     if edge.ordinal == border_points[0][2]:
                         del active_edges[i]
                         break
                 del border_points[0]
-            elif math.floor(border_points[1][0] + 0.5) == \
-                math.floor(border_points[2][0] + 0.5):
+            else:
                 for i, edge in enumerate(active_edges):
                     if edge.ordinal == border_points[1][2]:
                         del active_edges[i]
@@ -221,6 +229,14 @@ def Gourauds(canvas, vertices, vcolors):
             if vertices[i, 1] == y_min:
                 updatedcanvas[y_min, active_edges[0].y_min[0]] = vcolors[i, :]
 
+    # it only happens if it is a line parallel two x'x
+    # and we actually don't even care cause this line
+    # will be painted again cause it belongs to another triangle
+    if len(active_edges) == 0:
+        active_edges.append(edges[0])
+        active_edges.append(edges[1])
+    if len(active_edges) < 2:
+        active_edges.append(active_edges[0])
 
     ## find border points
     # a border point is: xk, mk, on which edge
@@ -303,16 +319,16 @@ def Gourauds(canvas, vertices, vcolors):
 
         # there is an edge case when we have 3 active edges
         # and we get three border points, 2 with the same xk
+        # we delete the point whose active edge has the smallest y_max
         if len(border_points) == 3:
-            if math.floor(border_points[0][0] + 0.5) == \
-                math.floor(border_points[2][0] + 0.5):
+            if edges[border_points[0][2]].y_max[1] < \
+                edges[border_points[1][2]].y_max[1]:
                 for i, edge in enumerate(active_edges):
                     if edge.ordinal == border_points[0][2]:
                         del active_edges[i]
                         break
                 del border_points[0]
-            elif math.floor(border_points[1][0] + 0.5) == \
-                math.floor(border_points[2][0] + 0.5):
+            else:
                 for i, edge in enumerate(active_edges):
                     if edge.ordinal == border_points[1][2]:
                         del active_edges[i]
@@ -321,19 +337,45 @@ def Gourauds(canvas, vertices, vcolors):
 
 
         ## last edge horizontal, fix border points and active edges
-        temp = []
-        flag = False
+        #temp = []
+        #flag = False
         for edge in active_edges:
             if edge.m == 0:
                 border_points = [[edge.y_min[0], 0, edge.ordinal],\
                                  [edge.y_max[0], 0, edge.ordinal]]
-                if not flag:
-                    for edge in active_edges:
-                        if edge.y_min[1] == y + 1:
-                            temp.append(edge)
-                            flag = True
-        if flag:
-            active_edges = temp
+        #        if not flag:
+        #            for edge in active_edges:
+        #                if edge.y_min[1] == y + 1:
+        #                    temp.append(edge)
+        #                    flag = True
+        #if flag:
+        #    active_edges = temp
 
 
     return updatedcanvas
+
+def render(verts2d, faces, vcolors, depth, shade_t):
+    # calculate depth of each triagle
+    triangles_depth = np.array(np.mean(depth[faces], axis = 1))
+
+    # sort faces triangles depth
+    indices = np.argsort(triangles_depth)
+    triangles_depth = triangles_depth[indices]
+    faces = faces[indices]
+
+    for face in faces:
+        for verts in verts2d[face]:
+            if verts[0] == 259 and verts[1] == 346:
+                print(verts2d[face])
+    img = np.ones((M, N, 3))
+
+    for face in faces:
+        if shade_t == 'gouraud':
+            img = Gourauds(img, verts2d[face], vcolors[face])
+        elif shade_t == 'flat':
+            img = flats(img, verts2d[face], vcolors[face])
+        else:
+            print("Not compatible shading method")
+            break
+
+    return img
