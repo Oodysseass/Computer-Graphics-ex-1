@@ -9,6 +9,9 @@ def get_data(filename):
     return data
 
 def interpolate_vectors(p1, p2, V1, V2, xy, dim):
+    if np.all(p1 == p2):
+        return V1
+
     ## find line connecting p1-p2
     # parallel to xx
     if p1[1] == p2[1]:
@@ -38,155 +41,113 @@ def interpolate_vectors(p1, p2, V1, V2, xy, dim):
 
     ## interpolation
     # coefficient
-    if d2 == 0:
-        l = 1
-    else:
-        l = d1 / d2
+    l = d1 / d2
 
     # interpolate
-    V = abs((1 - l) * V1 + l * V2)
+    V = V1 + l * (V2 - V1)
+    V = np.clip(V, 0, 1)
 
     return V
 
 def flats(canvas, vertices, vcolors):
     updatedcanvas = canvas
-
-    # flat color that's going to be used for all vertices
     flat_color = np.mean(vcolors, axis = 0)
 
+    # one point
+    if all(vertices[0] == vertices[1]) and all(vertices[1] == vertices[2]):
+        updatedcanvas[vertices[0, 0], vertices[0, 1]] = flat_color
+        return updatedcanvas
 
-    ## save edges
+    # save edges
     edges = [Edge() for _ in range(3)]
-    for i in range(3):
-        if i == 2:
-            edges[i] = Edge(i, np.array([vertices[(i + 1) % 3, :], \
-                                         vertices[i, :]]))
-        else:
-            edges[i] = Edge(i, np.array([vertices[i, :], \
-                                         vertices[(i + 1) % 3, :]]))
+    edges[0] = Edge(0, np.array([vertices[0], \
+                                 vertices[1]]))
+    edges[1] = Edge(1, np.array([vertices[1], \
+                                 vertices[2]]))
+    edges[2] = Edge(2, np.array([vertices[2], \
+                                 vertices[0]]))
 
-    ## find overall min and max
     y_min = min([edge.y_min[1] for edge in edges])
     y_max = max([edge.y_max[1] for edge in edges])
 
-    active_edges = []
-    horizontal = False
-
-    ## find active edges for y == ymin
+    # active edges
+    actives = 0
     for edge in edges:
-        # found edge
         if edge.y_min[1] == y_min:
-            # active edge is horizontal
+            edge.active = True
+            actives = actives + 1
+    border_points = []
+
+    # plain lane
+    # hold twice the same edge
+    if actives == 3:
+        for edge in edges:
+            if edge.m == float('-inf'):
+                edge.active = False
+                actives = actives - 1
+
+    # triangle with first edge parallel to x'x
+    # find edge with m = 0
+    # initialize next as border
+    # initialize other edges as actives
+    # start from y_min + 1
+    if actives == 3:
+        for i, edge in enumerate(edges):
             if edge.m == 0:
-                horizontal = True
+                # draw first line
+                for x in range(edge.vertices[0][0], edge.vertices[1][0] + 1):
+                    canvas[y_min, x] = interpolate_vectors(edge.vertices[0], edge.vertices[1],\
+                                                           vcolors[i], vcolors[(i + 1) % 3], \
+                                                           x, 1)
+                actives = actives - 1
+                edge.active = False
             else:
-                edge.active = True
-                active_edges.append(edge)
+                # border points: xk, m, edge
+                border_points.append([edge.y_min[0] + 1 / edge.m, edge.m, i])
+        y_min = y_min + 1
 
-    # paint starting point
-    if not horizontal:
-        updatedcanvas[y_min, active_edges[0].y_min[0]] = flat_color
+    # normal cases
+    if len(border_points) == 0:
+        for i, edge in enumerate(edges):
+            if edge.active:
+                border_points.append([edge.y_min[0], edge.m, i])
 
-    # it only happens if it is a line parallel two x'x
-    # and we actually don't even care cause this line
-    # will be painted again cause it belongs to another triangle
-    if len(active_edges) == 0:
-        active_edges.append(edges[0])
-        active_edges.append(edges[1])
-    if len(active_edges) < 2:
-        active_edges.append(active_edges[0])
-
-    ## find border points
-    # a border point is: xk, mk, on which edge
-    border_points = [[active_edges[0].y_min[0], active_edges[0].m, \
-                      active_edges[0].ordinal], \
-                     [active_edges[1].y_min[0], active_edges[1].m, \
-                      active_edges[1].ordinal]]
-
-    ### scanlines
     for y in range(y_min, y_max + 1):
+        # sort points
         border_points = sorted(border_points, key=lambda x: x[0])
 
-        ## scan x between border points
+        # draw between points
         for x in range(math.floor(border_points[0][0] + 0.5), \
                        math.floor(border_points[1][0] + 0.5) + 1):
-            # draw pixel
-            # reverse due to how it is rendered by imshow later
-            updatedcanvas[y, x] = flat_color
+            canvas[y, x] = flat_color
 
-
-        ## skip last active edges and border points
         if y == y_max:
             break
 
-        ## refresh active edges
-        # add any new ones
-        for edge in edges:
-            if edge.y_min[1] == y + 1:
-                edge.active = True
-                active_edges.append(edge)
-
-        # remove any old ones
-        temp = []
-        for i, active_edge in enumerate(active_edges):
-            active_edge.active = False
-            if active_edge.y_max[1] != y:
-                active_edge.active = True
-                temp.append(active_edge)
-        active_edges = temp
-
-
-        ## refresh border points
-        # remove old points
-        temp = []
-        for point in border_points:
-            if edges[point[2]].active:
-                temp.append(point)
-        border_points = temp
-
-        # add 1 / m to previous points
+        # move previous points
         for point in border_points:
             point[0] = point[0] + 1 / point[1]
 
-        # add points of new edge with ykmin == y + 1
-        if active_edges[-1].y_min[1] == y + 1:
-            border_points.append([active_edges[-1].y_min[0], \
-                                  active_edges[-1].m, active_edges[-1].ordinal])
+        # add new edge
+        # and its point
+        for i, edge in enumerate(edges):
+            if edge.y_min[1] == y + 1:
+                edge.active = True
+                actives = actives + 1
+                border_points.append([edge.y_min[0], edge.m, i])
 
-
-        # there is an edge case when we have 3 active edges
-        # and we get three border points, 2 with the same xk
-        # we delete the point whose active edge has the smallest y_max
-        if len(border_points) == 3:
-            if edges[border_points[0][2]].y_max[1] < \
-                edges[border_points[1][2]].y_max[1]:
-                for i, edge in enumerate(active_edges):
-                    if edge.ordinal == border_points[0][2]:
-                        del active_edges[i]
-                        break
-                del border_points[0]
-            else:
-                for i, edge in enumerate(active_edges):
-                    if edge.ordinal == border_points[1][2]:
-                        del active_edges[i]
-                        break
-                del border_points[1]
-
-
-        ## last edge horizontal, fix border points and active edges
-        temp = []
-        flag = False
-        for edge in active_edges:
-            if edge.m == 0:
-                border_points = [[edge.y_min[0], 0, edge.ordinal],\
-                                 [edge.y_max[0], 0, edge.ordinal]]
-                if not flag:
-                    for edge in active_edges:
-                        if edge.y_min[1] == y + 1:
-                            temp.append(edge)
-                            flag = True
-        if flag:
-            active_edges = temp
+        # remove if three
+        # and remove its border point
+        if actives == 3:
+            for i, edge in enumerate(edges):
+                if edge.y_max[1] == y + 1:
+                    if border_points[0][2] == i:
+                        del border_points[0]
+                    else:
+                        del border_points[1]
+                    edge.active = False
+                    actives = actives - 1
+                    break
 
 
     return updatedcanvas
@@ -194,162 +155,113 @@ def flats(canvas, vertices, vcolors):
 def Gourauds(canvas, vertices, vcolors):
     updatedcanvas = canvas
 
-    ## save edges
-    edges = [Edge() for _ in range(3)]
-    for i in range(3):
-        if i == 2:
-            edges[i] = Edge(i, np.array([vertices[(i + 1) % 3, :], \
-                                         vertices[i, :]]))
-        else:
-            edges[i] = Edge(i, np.array([vertices[i, :], \
-                                         vertices[(i + 1) % 3, :]]))
+    if all(vertices[0] == vertices[1]) and all(vertices[1] == vertices[2]):
+        updatedcanvas[vertices[0, 0], vertices[0, 1]] = vcolors[1]
+        return updatedcanvas
 
-    ## find overall min and max
+    edges = [Edge() for _ in range(3)]
+    edges[0] = Edge(0, np.array([vertices[0], \
+                                 vertices[1]]))
+    edges[1] = Edge(1, np.array([vertices[1], \
+                                 vertices[2]]))
+    edges[2] = Edge(2, np.array([vertices[2], \
+                                 vertices[0]]))
+
     y_min = min([edge.y_min[1] for edge in edges])
     y_max = max([edge.y_max[1] for edge in edges])
 
-
-    active_edges = []
-    horizontal = False
-
-    ## find active edges for y == ymin
+    # active edges
+    actives = 0
     for edge in edges:
-        # found edge
         if edge.y_min[1] == y_min:
-            # active edge is horizontal
+            edge.active = True
+            actives = actives + 1
+    border_points = []
+
+    # plain lane
+    # hold twice the same edge
+    if actives == 3:
+        for edge in edges:
+            if edge.m == float('-inf'):
+                edge.active = False
+                actives = actives - 1
+
+    # triangle with first edge parallel to x'x
+    # find edge with m = 0
+    # initialize next as border
+    # initialize other edges as actives
+    # start from y_min + 1
+    if actives == 3:
+        for i, edge in enumerate(edges):
             if edge.m == 0:
-                horizontal = True
+                # draw first line
+                for x in range(edge.vertices[0][0], edge.vertices[1][0] + 1):
+                    canvas[y_min, x] = interpolate_vectors(edge.vertices[0], edge.vertices[1],\
+                                                           vcolors[i], vcolors[(i + 1) % 3], \
+                                                           x, 1)
+                actives = actives - 1
+                edge.active = False
             else:
-                edge.active = True
-                active_edges.append(edge)
+                # border points: xk, m, edge
+                border_points.append([edge.y_min[0] + 1 / edge.m, edge.m, i])
+        y_min = y_min + 1
 
-    # paint starting point
-    if not horizontal:
-        for i in range(len(vertices)):
-            if vertices[i, 1] == y_min:
-                updatedcanvas[y_min, active_edges[0].y_min[0]] = vcolors[i, :]
+    # normal cases
+    if len(border_points) == 0:
+        for i, edge in enumerate(edges):
+            if edge.active:
+                border_points.append([edge.y_min[0], edge.m, i])
 
-    # it only happens if it is a line parallel two x'x
-    # and we actually don't even care cause this line
-    # will be painted again cause it belongs to another triangle
-    if len(active_edges) == 0:
-        active_edges.append(edges[0])
-        active_edges.append(edges[1])
-    if len(active_edges) < 2:
-        active_edges.append(active_edges[0])
-
-    ## find border points
-    # a border point is: xk, mk, on which edge
-    border_points = [[active_edges[0].y_min[0], active_edges[0].m, \
-                      active_edges[0].ordinal], \
-                     [active_edges[1].y_min[0], active_edges[1].m, \
-                      active_edges[1].ordinal]]
-
-
-    ### scanlines
     for y in range(y_min, y_max + 1):
+        # sort points
         border_points = sorted(border_points, key=lambda x: x[0])
 
-        ## first color interpolation
-        #  find color on each active edge
-        for i, edge in enumerate(active_edges):
-            if edge.ordinal == border_points[0][2]:
-                edge_A = i
-            elif edge.ordinal == border_points[1][2]:
-                edge_B = i
-
-        color_A = interpolate_vectors(active_edges[edge_A].vertices[0, :], \
-                                      active_edges[edge_A].vertices[1, :], \
-                                      vcolors[active_edges[edge_A].ordinal], \
-                                      vcolors[(active_edges[edge_A].ordinal + 1) % 3], \
+        # find color in points
+        color_A = interpolate_vectors(edges[border_points[0][2]].vertices[0, :], \
+                                      edges[border_points[0][2]].vertices[1, :], \
+                                      vcolors[border_points[0][2]], \
+                                      vcolors[(border_points[0][2] + 1) % 3], \
                                       y, 2)
-        color_B = interpolate_vectors(active_edges[edge_B].vertices[0, :], \
-                                      active_edges[edge_B].vertices[1, :], \
-                                      vcolors[active_edges[edge_B].ordinal], \
-                                      vcolors[(active_edges[edge_B].ordinal + 1) % 3], \
+        color_B = interpolate_vectors(edges[border_points[1][2]].vertices[0, :], \
+                                      edges[border_points[1][2]].vertices[1, :], \
+                                      vcolors[border_points[1][2]], \
+                                      vcolors[(border_points[1][2] + 1) % 3], \
                                       y, 2)
 
-        ## scan x between border points
+        # draw between points
         for x in range(math.floor(border_points[0][0] + 0.5), \
                        math.floor(border_points[1][0] + 0.5) + 1):
-            # draw pixel
-            # reverse due to how it is rendered by imshow later
-            updatedcanvas[y, x] = interpolate_vectors(np.array([border_points[0][0], y]), \
-                                                      np.array([border_points[1][0], y]), \
-                                                      color_A, color_B, x, 1)
+            canvas[y, x] = interpolate_vectors(np.array([math.floor(border_points[0][0] + 0.5), y]), \
+                                               np.array([math.floor(border_points[1][0] + 0.5) + 1, y]), \
+                                               color_A, color_B, x, 1)
 
-
-        ## skip last active edges and border points
         if y == y_max:
             break
 
-        ## refresh active edges
-        # add any new ones
-        for edge in edges:
-            if edge.y_min[1] == y + 1:
-                edge.active = True
-                active_edges.append(edge)
-
-        # remove any old ones
-        temp = []
-        for i, active_edge in enumerate(active_edges):
-            active_edge.active = False
-            if active_edge.y_max[1] != y:
-                active_edge.active = True
-                temp.append(active_edge)
-        active_edges = temp
-
-
-        ## refresh border points
-        # remove old points
-        temp = []
-        for point in border_points:
-            if edges[point[2]].active:
-                temp.append(point)
-        border_points = temp
-
-        # add 1 / m to previous points
+        # move previous points
         for point in border_points:
             point[0] = point[0] + 1 / point[1]
 
-        # add points of new edge with ykmin == y + 1
-        if active_edges[-1].y_min[1] == y + 1:
-            border_points.append([active_edges[-1].y_min[0], \
-                                  active_edges[-1].m, active_edges[-1].ordinal])
+        # add new edge
+        # and its point
+        for i, edge in enumerate(edges):
+            if edge.y_min[1] == y + 1:
+                edge.active = True
+                actives = actives + 1
+                border_points.append([edge.y_min[0], edge.m, i])
 
-        # there is an edge case when we have 3 active edges
-        # and we get three border points, 2 with the same xk
-        # we delete the point whose active edge has the smallest y_max
-        if len(border_points) == 3:
-            if edges[border_points[0][2]].y_max[1] < \
-                edges[border_points[1][2]].y_max[1]:
-                for i, edge in enumerate(active_edges):
-                    if edge.ordinal == border_points[0][2]:
-                        del active_edges[i]
-                        break
-                del border_points[0]
-            else:
-                for i, edge in enumerate(active_edges):
-                    if edge.ordinal == border_points[1][2]:
-                        del active_edges[i]
-                        break
-                del border_points[1]
-
-
-        ## last edge horizontal, fix border points and active edges
-        #temp = []
-        #flag = False
-        for edge in active_edges:
-            if edge.m == 0:
-                border_points = [[edge.y_min[0], 0, edge.ordinal],\
-                                 [edge.y_max[0], 0, edge.ordinal]]
-        #        if not flag:
-        #            for edge in active_edges:
-        #                if edge.y_min[1] == y + 1:
-        #                    temp.append(edge)
-        #                    flag = True
-        #if flag:
-        #    active_edges = temp
+        # remove if three
+        # and remove its border point
+        if actives == 3:
+            for i, edge in enumerate(edges):
+                if edge.y_max[1] == y + 1:
+                    if border_points[0][2] == i:
+                        del border_points[0]
+                    else:
+                        del border_points[1]
+                    edge.active = False
+                    actives = actives - 1
+                    break
 
 
     return updatedcanvas
@@ -363,10 +275,6 @@ def render(verts2d, faces, vcolors, depth, shade_t):
     triangles_depth = triangles_depth[indices]
     faces = faces[indices]
 
-    for face in faces:
-        for verts in verts2d[face]:
-            if verts[0] == 259 and verts[1] == 346:
-                print(verts2d[face])
     img = np.ones((M, N, 3))
 
     for face in faces:
