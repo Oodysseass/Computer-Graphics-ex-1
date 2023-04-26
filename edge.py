@@ -14,6 +14,8 @@ class Edge:
             if self.y_min[0] != self.y_max[0]:
                 self.m = (vertices[0, 1] - vertices[1, 1]) / \
                     (vertices[0, 0] - vertices[1, 0])
+            elif self.y_min[0] == self.y_max[0] and self.y_min[1] == self.y_max[1]:
+                self.m = 0
             else:
                 self.m = float('inf')
             self.active = False
