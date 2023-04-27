@@ -9,39 +9,14 @@ def get_data(filename):
     return data
 
 def interpolate_vectors(p1, p2, V1, V2, xy, dim):
-    if np.all(p1 == p2):
-        return V1
-
-    ## find line connecting p1-p2
-    # parallel to xx
-    if p1[1] == p2[1]:
-        # obviously dim == 1
-        p = np.array([xy, p1[1]])
-
-    # vertical line
-    elif p1[0] == p2[0]:
-        # obviously dim == 2
-        p = np.array([p1[0], xy])
-
-    # normal line
+    if dim == 1:
+        if p1[0] == p2[0]:
+            return V1
+        l = (xy - p1[0]) / (p2[0] - p1[0])
     else:
-        m = (p2[1] - p1[1]) / (p2[0] - p1[0])
-        b = p1[1] - m * p1[0]
-        if dim == 1:
-            p = np.array([xy, m * xy + b])
-        elif dim == 2:
-            p = np.array([(xy - b) / m, xy])
-
-    ## find p-p1 and p1-p2 distance
-    # p-p1
-    d1 = np.linalg.norm(p - p1)
-    
-    # p1-p2
-    d2 = np.linalg.norm(p1 - p2)
-
-    ## interpolation
-    # coefficient
-    l = d1 / d2
+        if p1[1] == p2[1]:
+            return V1
+        l = (xy - p1[1]) / (p2[1] - p1[1])
 
     # interpolate
     V = V1 + l * (V2 - V1)
@@ -81,7 +56,7 @@ def flats(canvas, vertices, vcolors):
     border_points = []
 
     # plain lane
-    # hold twice the same edge
+    # hold twice the only actual edge
     if actives == 3:
         for edge in edges:
             if edge.m == float('-inf'):
@@ -141,6 +116,10 @@ def flats(canvas, vertices, vcolors):
         # remove if three
         # and remove its border point
         if actives == 3:
+            # only one edge case for m = 0 on last edge
+            if border_points[-1][1] == 0:
+                del border_points[-1]
+                continue
             for i, edge in enumerate(edges):
                 if edge.y_max[1] == y + 1:
                     if border_points[0][2] == i:
@@ -217,6 +196,7 @@ def Gourauds(canvas, vertices, vcolors):
                                       vcolors[border_points[1][2]], \
                                       vcolors[(border_points[1][2] + 1) % 3], \
                                       y, 2)
+
         for x in range(math.floor(border_points[0][0] + 0.5), \
                        math.floor(border_points[1][0] + 0.5) + 1):
             # find color in scanline
@@ -236,12 +216,11 @@ def Gourauds(canvas, vertices, vcolors):
                 actives = actives + 1
                 border_points.append([edge.y_min[0], edge.m, i])
 
-        # only one edge case for m = 0 on last edge
-        if border_points[-1][1] == 0:
-            del border_points[-1]
-            continue
-
         if actives == 3:
+            # only one edge case for m = 0 on last edge
+            if border_points[-1][1] == 0:
+                del border_points[-1]
+                continue
             for i, edge in enumerate(edges):
                 if edge.y_max[1] == y + 1:
                     if border_points[0][2] == i:
@@ -260,7 +239,7 @@ def render(verts2d, faces, vcolors, depth, shade_t):
     triangles_depth = np.array(np.mean(depth[faces], axis = 1))
 
     # sort faces triangles depth
-    indices = np.argsort(triangles_depth)
+    indices = np.flip(np.argsort(triangles_depth))
     triangles_depth = triangles_depth[indices]
     faces = faces[indices]
 
