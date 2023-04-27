@@ -33,7 +33,7 @@ class Edge:
             self.active = None
     
     def __str__(self):
-        return f"Edge ordinal: {self.ordinal}, vertices: {self.vertices}, \
+        return f"Vertices: {self.vertices}, \
             y_min: {self.y_min}, y_max: {self.y_max}, m: {self.m}, active: {self.active}"
 
 
