@@ -11,5 +11,7 @@ depth = np.array(data['depth'])
 
 img = render(verts2d, faces, vcolors, depth, 'gouraud')
 
+plt.imsave('gouraud.pdf', img)
 plt.imshow(img)
 plt.show()
+

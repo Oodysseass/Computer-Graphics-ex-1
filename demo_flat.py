@@ -11,6 +11,7 @@ depth = np.array(data['depth'])
 
 img = render(verts2d, faces, vcolors, depth, 'flat')
 
+plt.imsave('flat.pdf', img)
 plt.imshow(img)
 plt.show()
 
