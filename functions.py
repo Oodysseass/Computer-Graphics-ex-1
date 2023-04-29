@@ -19,7 +19,7 @@ def interpolate_vectors(p1, p2, V1, V2, xy, dim):
         l = (xy - p1[1]) / (p2[1] - p1[1])
 
     # interpolate
-    V = V1 + l * (V2 - V1)
+    V = (1 - l) * V1 + l * V2
     V = np.clip(V, 0, 1)
 
     return V
@@ -32,7 +32,7 @@ def flats(canvas, vertices, vcolors):
 
     # one point
     if all(vertices[0] == vertices[1]) and all(vertices[1] == vertices[2]):
-        updatedcanvas[vertices[0, 0], vertices[0, 1]] = flat_color
+        updatedcanvas[vertices[0, 1], vertices[0, 0]] = flat_color
         return updatedcanvas
 
     # save edges
@@ -73,9 +73,7 @@ def flats(canvas, vertices, vcolors):
             if edge.m == 0:
                 # draw first line
                 for x in range(edge.vertices[0][0], edge.vertices[1][0] + 1):
-                    canvas[y_min, x] = interpolate_vectors(edge.vertices[0], edge.vertices[1],\
-                                                           vcolors[i], vcolors[(i + 1) % 3], \
-                                                           x, 1)
+                    canvas[y_min, x] = flat_color
                 actives = actives - 1
                 edge.active = False
             else:
@@ -137,7 +135,7 @@ def Gourauds(canvas, vertices, vcolors):
     updatedcanvas = canvas
 
     if all(vertices[0] == vertices[1]) and all(vertices[1] == vertices[2]):
-        updatedcanvas[vertices[0, 0], vertices[0, 1]] = np.mean(vcolors, axis=0)
+        updatedcanvas[vertices[0, 1], vertices[0, 0]] = np.mean(vcolors, axis=0)
         return updatedcanvas
 
     edges = [Edge() for _ in range(3)]
