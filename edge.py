@@ -8,17 +8,17 @@ class Edge:
             # cordinates of yk_min, yk_max
             if vertices[0, 1] < vertices[1, 1]:
                 self.y_min = vertices[0, :]
-                self.y_max = vertices[1, :]
+                self.y_max = vertices[1, 1]
             else:
                 self.y_min = vertices[1, :]
-                self.y_max = vertices[0, :]
+                self.y_max = vertices[0, 1]
             # slope of edge
-            if self.y_min[0] != self.y_max[0]:
+            if vertices[0, 0] != vertices[1, 0]:
                 self.m = (vertices[0, 1] - vertices[1, 1]) / \
                     (vertices[0, 0] - vertices[1, 0])
             # edge is essentially a point
             # -inf just for flag
-            elif self.y_min[0] == self.y_max[0] and self.y_min[1] == self.y_max[1]:
+            elif np.all(vertices[0, :] == vertices[1, :]):
                 self.m = float('-inf')
             # vertical edge
             else:

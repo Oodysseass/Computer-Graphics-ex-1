@@ -45,7 +45,7 @@ def flats(canvas, vertices, vcolors):
                                  vertices[0]]))
 
     y_min = min([edge.y_min[1] for edge in edges])
-    y_max = max([edge.y_max[1] for edge in edges])
+    y_max = max([edge.y_max for edge in edges])
 
     # active edges
     actives = 0
@@ -121,7 +121,7 @@ def flats(canvas, vertices, vcolors):
                 del border_points[-1]
                 continue
             for i, edge in enumerate(edges):
-                if edge.y_max[1] == y + 1:
+                if edge.y_max == y + 1:
                     if border_points[0][2] == i:
                         del border_points[0]
                     else:
@@ -149,7 +149,7 @@ def Gourauds(canvas, vertices, vcolors):
                                  vertices[0]]))
 
     y_min = min([edge.y_min[1] for edge in edges])
-    y_max = max([edge.y_max[1] for edge in edges])
+    y_max = max([edge.y_max for edge in edges])
 
     actives = 0
     for edge in edges:
@@ -217,12 +217,12 @@ def Gourauds(canvas, vertices, vcolors):
                 border_points.append([edge.y_min[0], edge.m, i])
 
         if actives == 3:
-            # only one edge case for m = 0 on last edge
+            ## only one edge case for m = 0 on last edge
             if border_points[-1][1] == 0:
                 del border_points[-1]
                 continue
             for i, edge in enumerate(edges):
-                if edge.y_max[1] == y + 1:
+                if edge.y_max == y + 1:
                     if border_points[0][2] == i:
                         del border_points[0]
                     else:
