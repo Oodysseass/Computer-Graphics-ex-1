@@ -1,8 +1,6 @@
 import numpy as np
 from functions import get_data, render
 from matplotlib import pyplot as plt
-import matplotlib
-matplotlib.use('TkAgg')
 
 # get data
 data = get_data('h1.npy')
